@@ -9,6 +9,7 @@ from filseg.geometry import disk_geometry
 from filseg.metrics import image_counts, match_counts, overlap_table, panoptic_quality, pq_parts
 from filseg.postprocess import components, keep_mask
 from filseg.submission import read_submission, rle_decode, rle_encode, write_submission
+from filseg.weights import find_weights
 
 
 def square(y, x, h, w):
@@ -82,3 +83,23 @@ def test_config_round_trip(tmp_path):
     c.to_json(tmp_path / "c.json")
     c2 = Config.from_json(tmp_path / "c.json", overrides={"train": {"epochs": 3}})
     assert c2.post.min_score == 0.8 and c2.train.epochs == 3 and c2.train.epochs_for(0) == 40
+
+
+def test_find_weights_names_and_order(tmp_path):
+    for name in ["a/fold1.pt", "a/best_fold2.pt", "a/baseline/best.pt", "a/other.pt", "a/fold7.pt", "b/fold1.pt"]:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_bytes(b"")
+    w = find_weights([tmp_path / "b", tmp_path / "a", tmp_path / "missing"], n_folds=5)
+    assert sorted(w) == [0, 1, 2]
+    assert w[0].name == "best.pt" and w[1].parent.name == "b"          # earlier folders win
+
+
+def test_shipped_weights_load():
+    """The five fold models in weights/ load into the configured architecture (all keys and shapes match)."""
+    pytest.importorskip("segmentation_models_pytorch")
+    from filseg.model import build_model, load_weights
+    w = find_weights()
+    assert sorted(w) == list(range(Config().train.n_folds))
+    model = build_model(Config().train.encoder, None, "cpu", channels_last=False, data_parallel=False)
+    for path in w.values():
+        load_weights(model, path)

@@ -1,7 +1,8 @@
 """Command line: python -m filseg <command> [options]
 
   train     train fold models (weights, validation and test maps go to --out)
-  oof       out-of-fold maps from existing fold models (each predicts the fold it never saw)
+  oof       out-of-fold and test maps from trained fold models, by default the ones shipped in weights/
+            (each model predicts the fold it never saw)
   tune      post-processing search on out-of-fold maps -> best settings JSON
   evaluate  PQ of out-of-fold maps under the configured post-processing
   submit    average the fold models' test maps, post-process, write submission.csv
@@ -29,7 +30,8 @@ def main(argv=None):
         p = sub.add_parser(name)
         _common(p)
         p.add_argument("--maps", nargs="*", default=None, help="folders with saved maps (default: --out)")
-        p.add_argument("--weights", nargs="*", default=None, help="folders with fold weights (default: --out and --data)")
+        p.add_argument("--weights", nargs="*", default=None,
+                       help="folders with fold models (default: --out, then the repository's weights/ folder)")
         p.add_argument("--folds", nargs="*", type=int, default=None)
         p.add_argument("--objective", choices=["annotator", "pooled"], default="annotator")
         p.add_argument("--workers", type=int, default=4)
@@ -44,7 +46,7 @@ def main(argv=None):
     from .pipeline import load_maps, make_submission, prepare
     from .postprocess import instances_from_map
     from .tune import best_params, search
-    from .weights import find_weights
+    from .weights import REPO_WEIGHTS, find_weights
 
     cfg = Config.from_json(a.config)
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
@@ -65,7 +67,7 @@ def main(argv=None):
         return
 
     if a.cmd == "oof":
-        weights = find_weights(a.weights or [out, a.data], cfg.train.n_folds)
+        weights = find_weights(a.weights or [out, REPO_WEIGHTS], cfg.train.n_folds)
         for k in folds:
             if k not in weights:
                 print(f"fold {k}: no weights found"); continue

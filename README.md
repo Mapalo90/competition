@@ -55,27 +55,31 @@ Per fold (each annotator): 0.427 / 0.406 / 0.391 / 0.409 / 0.409.
 
 ## Reproduce
 
-**On Kaggle** (recommended): create a notebook from the competition page, turn Internet on, import
-[`notebooks/pipeline.ipynb`](notebooks/pipeline.ipynb), choose a mode in its first cell and run all.
+The five trained fold models are in [`weights/`](weights) (float16, 49 MB each), so reproducing the
+submission needs only this repository and the competition data; nothing is retrained.
 
-| `MODE` | needs | time | |
-|---|---|---|---|
-| `"maps"` | saved probability maps attached | ~10 min, CPU | post-processing, evaluation, submission |
-| `"weights"` | the five fold models attached, or `WEIGHTS_URL` | ~30 min, GPU T4 x2 | recompute all maps, then as above |
-| `"train"` | only the competition data | ~7 h, GPU T4 x2 | train all five folds, then as above |
+**On Kaggle** (recommended): create a notebook from the competition page, turn Internet on, import
+[`notebooks/pipeline.ipynb`](notebooks/pipeline.ipynb) and run all. Its last section scores the new
+submission against the file we submitted, [`submissions/submission_kaggle.csv`](submissions/submission_kaggle.csv).
+
+| `MODE` | time | |
+|---|---|---|
+| `"weights"` (default) | ~30 min, GPU T4 x2 | load the models from `weights/`, recompute all probability maps, evaluate, write the submission |
+| `"train"` | ~7 h, GPU T4 x2 | train the five fold models from scratch, then as above |
+| `"maps"` | ~10 min, CPU | start from probability maps saved by an earlier run (attached), then as above |
 
 **Locally or from a shell:**
 
 ```bash
 pip install -r requirements.txt && pip install -e .
-python -m filseg train    --data /path/to/competition --out runs     # five fold models + maps
+python -m filseg oof      --data /path/to/competition --out runs     # maps from the models in weights/
 python -m filseg evaluate --data /path/to/competition --out runs     # out-of-fold PQ, both rules
-python -m filseg tune     --data /path/to/competition --out runs     # optional: post-processing search
 python -m filseg submit   --data /path/to/competition --out runs     # runs/submission.csv
+python -m filseg tune     --data /path/to/competition --out runs     # optional: post-processing search
 pytest -q                                                            # unit tests
 ```
 
-`python -m filseg oof` recomputes out-of-fold and test maps from existing fold models instead of training.
+`python -m filseg train` trains new fold models into `--out` instead (`oof` then uses those).
 All settings live in [`src/filseg/config.py`](src/filseg/config.py); the defaults reproduce the submission.
 
 ## Efficiency
@@ -100,7 +104,12 @@ src/filseg/
   submission.py    run-length encoding and the submission file
   viz.py           overlays and the IoU / Dice / one-to-many figures
   __main__.py      command line
-notebooks/pipeline.ipynb   end-to-end notebook
+notebooks/pipeline.ipynb   end-to-end notebook (pipeline.py: the same notebook as a script)
+weights/                   the five trained fold models, with checksums and provenance
+submissions/               the file submitted to Kaggle (public leaderboard 0.36)
+configs/final.json         the submitted settings, as a file
+experiments/               the Kaggle notebooks as run during the competition
+report/                    technical report (LaTeX, figures)
 tests/                     unit tests (synthetic data, run in seconds)
 ```
 

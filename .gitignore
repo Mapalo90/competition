@@ -7,3 +7,6 @@ runs/
 *.npz
 *.pt
 .ipynb_checkpoints/
+
+# the shipped fold models are part of the repository
+!weights/*.pt

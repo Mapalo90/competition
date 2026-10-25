@@ -13,21 +13,23 @@
 # probability at least 0.85 and lie within 0.9 solar radii. These settings were tuned for Panoptic
 # Quality on out-of-fold predictions of all 707 training images.
 #
-# **Run modes** (set `MODE` below):
-# | MODE | needs | time on Kaggle | what it does |
-# |---|---|---|---|
-# | `"maps"` | saved probability maps (attached) | ~10 min, CPU | post-processing, evaluation, submission |
-# | `"weights"` | the five fold models (attached or downloaded) | ~30 min, GPU T4 x2 | recompute all maps, then as above |
-# | `"train"` | only the competition data | ~7 h, GPU T4 x2 | train all five folds, then as above |
+# **Run modes** (set `MODE` below). Only the competition data is needed: the five trained models are in this
+# repository's `weights/` folder.
+# | MODE | time on Kaggle | what it does |
+# |---|---|---|
+# | `"weights"` (default) | ~30 min, GPU T4 x2 | load the five fold models, recompute all probability maps, evaluate, write the submission |
+# | `"train"` | ~7 h, GPU T4 x2 | train the five fold models from scratch, then as above |
+# | `"maps"` | ~10 min, CPU | start from probability maps saved by an earlier run (attached), then as above |
 #
-# On Kaggle: create the notebook from the competition page (the data is attached automatically),
-# turn Internet on, attach the weights or maps if using those modes, and run all cells.
+# On Kaggle: create the notebook from the competition page (the data is attached automatically), turn
+# Internet on (to fetch this repository and segmentation-models-pytorch) and run all cells. The last
+# section checks the new submission against the file we submitted.
 
 # %% 0 · Settings -------------------------------------------------------------------------------
 import os
-MODE = os.environ.get("FILSEG_MODE", "weights")     # "maps", "weights" or "train"
-REPO_URL = "https://github.com/Mapalo90/competition.git"   # public once the competition closes
-WEIGHTS_URL = ""                 # e.g. ".../releases/download/v1.0/fold{k}.pt"; empty = search attached inputs
+MODE = os.environ.get("FILSEG_MODE", "weights")     # "weights", "train" or "maps"
+REPO_URL = "https://github.com/Mapalo90/competition.git"
+WEIGHTS_DIR = os.environ.get("FILSEG_WEIGHTS")      # None: the repository's weights/ folder
 DATA_DIR = os.environ.get("FILSEG_DATA", "/kaggle/input")
 OUT_DIR = os.environ.get("FILSEG_OUT", "/kaggle/working/outputs")
 TUNE = os.environ.get("FILSEG_TUNE", "0") == "1"   # re-run the post-processing search (~10 min)
@@ -69,8 +71,8 @@ from filseg.data import discover, load_gray
 from filseg.pipeline import prepare, load_maps, predict_test, make_submission
 from filseg.postprocess import instances_from_map
 from filseg.metrics import panoptic_quality
-from filseg.model import build_model, load_weights, predict_maps, save_weights
-from filseg.weights import find_weights, download_weights
+from filseg.model import build_model, load_weights, predict_maps
+from filseg.weights import REPO_WEIGHTS, find_weights
 from filseg.tune import search, best_params
 from filseg import viz
 
@@ -109,17 +111,14 @@ if MODE == "train":
         train_fold(cfg.train, k, cache["X"], cache["Y"], trn, [cache["idx"][o] for o in val_obs], val_obs,
                    cache["gt"], cache["geom"], fold_dir, device, cache["test_small"], data.test_obs)
 elif MODE == "weights":
-    weights = download_weights(WEIGHTS_URL, out / "weights", cfg.train.n_folds) if WEIGHTS_URL \
-        else find_weights([DATA_DIR, out], cfg.train.n_folds)
+    weights = find_weights([WEIGHTS_DIR] if WEIGHTS_DIR else None, cfg.train.n_folds)
     print("weights:", {k: str(v) for k, v in weights.items()})
-    assert len(weights) == cfg.train.n_folds, "attach the five fold models or set WEIGHTS_URL"
+    assert len(weights) == cfg.train.n_folds, f"expected {cfg.train.n_folds} fold models in {WEIGHTS_DIR or REPO_WEIGHTS}"
     fold_dir.mkdir(parents=True, exist_ok=True)
     t_inf, n_inf = 0.0, 0
     for k, w in weights.items():
         model = build_model(cfg.train.encoder, None, device, cfg.train.channels_last)
         load_weights(model, w, device)
-        (out / "weights_fp16").mkdir(exist_ok=True)
-        save_weights(model, out / "weights_fp16" / f"fold{k}.pt")          # ~49 MB each, for a release
         val_obs = [o for o in data.train_obs if folds[o] == k]
         vp = predict_maps(model, [cache["X"][cache["idx"][o]] for o in val_obs], device, tta=cfg.post.tta)
         t1 = time.time()
@@ -186,12 +185,29 @@ if Path("/kaggle/working").exists():
     sub.to_csv("/kaggle/working/submission.csv", index=False)
 
 # %% [markdown]
-# ## 4. Figures
+# ## 4. Check against the submitted file
+# `submissions/submission_kaggle.csv` is the file we submitted (public leaderboard PQ 0.36). The new submission
+# is scored against it with the competition metric, so PQ 1.0 would mean the same filaments with the same
+# pixels. Mixed-precision GPU inference differs slightly between GPUs and library versions, and the models
+# are stored in float16, so a value just below 1 is expected.
+
+# %% 7 · Reproduction check -------------------------------------------------------------------------
+submitted = REPO_WEIGHTS.parent / "submissions" / "submission_kaggle.csv"
+if submitted.exists():
+    from filseg.submission import read_submission
+    ref, new = read_submission(submitted), read_submission(out / "submission.csv")
+    c = sum(match_counts(*overlap_table(ref.get(o, []), new.get(o, []))) for o in data.test_obs)
+    pq, sq, _ = pq_parts(*c)
+    print(f"new vs submitted file: {int(c[0])} filaments matched, {int(c[1])} only in the new file, "
+          f"{int(c[2])} only in the submitted file; PQ {pq:.4f}, mean IoU of matched filaments {sq:.4f}")
+
+# %% [markdown]
+# ## 5. Figures
 # Overlays of out-of-fold predictions on validation images (annotator 1 green, annotator 2 blue,
 # prediction magenta), and the distributions the evaluation rubric names: IoU and Dice of overlapping
 # GT/prediction pairs, and one-to-many / many-to-one relations.
 
-# %% 7 · Figures --------------------------------------------------------------------------------
+# %% 8 · Figures --------------------------------------------------------------------------------
 if FIGURES:
     multi = sorted((o for o in gt if len(gt[o]) >= 2), key=lambda o: -sum(len(s) for s in gt[o]))[:3]
     fig, axes = plt.subplots(1, len(multi), figsize=(6 * len(multi), 6), squeeze=False)
@@ -203,7 +219,7 @@ if FIGURES:
     fig = viz.distribution_figure(stats, "Out-of-fold predictions, all training images")
     fig.savefig(out / "fig_distributions.png", dpi=110); plt.show()
 
-# %% 8 · Package versions (for requirements.txt) -----------------------------------------------------
+# %% 9 · Package versions (for requirements.txt) -----------------------------------------------------
 from importlib.metadata import version, PackageNotFoundError
 pins = []
 for name in ("torch", "torchvision", "segmentation-models-pytorch", "timm", "huggingface-hub", "numpy", "scipy",
