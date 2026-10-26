@@ -62,6 +62,17 @@ def pq_parts(tp: float, fp: float, fn: float, sum_iou: float, *_) -> tuple:
     return (sum_iou / den if den else np.nan, sum_iou / tp if tp else np.nan, tp / den if den else np.nan)
 
 
+def bootstrap_interval(counts: np.ndarray, n_boot: int = 2000, level: float = 0.95, seed: int = 0) -> tuple:
+    """Percentile bootstrap interval of PQ over images. counts: one row per image, [TP, FP, FN, sum of IoU, ...]."""
+    counts = np.asarray(counts, float)[:, :4]
+    idx = np.random.default_rng(seed).integers(0, len(counts), (n_boot, len(counts)))
+    s = counts[idx].sum(1)
+    den = s[:, 0] + 0.5 * s[:, 1] + 0.5 * s[:, 2]
+    pq = np.divide(s[:, 3], den, out=np.full(n_boot, np.nan), where=den > 0)
+    tail = 50 * (1 - level)
+    return tuple(float(v) for v in np.nanpercentile(pq, [tail, 100 - tail]))
+
+
 def image_counts(gt_sets: list, pred: list, keep: np.ndarray | None = None) -> dict:
     """Counts for one image under both rules: {'annotator': [...6], 'pooled': [...6]}."""
     tables = [overlap_table(g, pred) for g in gt_sets]

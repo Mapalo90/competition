@@ -139,24 +139,39 @@ print(f"out-of-fold maps for {len(gt)} of {len(data.train_obs)} training images 
 # ## 2. Out-of-fold evaluation
 # Every training image is scored with the model that never saw it. PQ is reported against each annotator
 # separately (the organizers' self-evaluation notebook) and against all annotators pooled with one-to-one
-# matching (whose level matches the public leaderboard). Human agreement on the same images, one annotator
-# scored against another, is the reference point.
+# matching (whose level matches the public leaderboard), with 95% bootstrap intervals over images. Human
+# agreement on the same images, one annotator scored against another, is the reference point. Per-image
+# counts and a summary go to `per_image_counts.csv` and `results.json`.
 
 # %% 4 · Evaluate -----------------------------------------------------------------------------
-from filseg.metrics import overlap_table, match_counts, pq_parts
+from filseg.metrics import overlap_table, match_counts, pq_parts, image_counts, bootstrap_interval
 pred_oof = {o: instances_from_map(oof[o], cache["geom"][o], cfg.post) for o in gt}
 res = panoptic_quality(gt, pred_oof)
+per_image = {o: image_counts(gt[o], pred_oof[o]) for o in gt}
 for rule, r in res.items():
+    r["PQ_95"] = bootstrap_interval([per_image[o][rule] for o in gt])
     extra = f"  splits {r['splits']}  merges {r['merges']}" if rule == "annotator" else ""
-    print(f"{rule:9s} PQ {r['PQ']:.4f}  SQ {r['SQ']:.4f}  RQ {r['RQ']:.4f}  TP {r['TP']}  FP {r['FP']}  FN {r['FN']}{extra}")
+    print(f"{rule:9s} PQ {r['PQ']:.4f} (95% interval over images {r['PQ_95'][0]:.4f}-{r['PQ_95'][1]:.4f})  "
+          f"SQ {r['SQ']:.4f}  RQ {r['RQ']:.4f}  TP {r['TP']}  FP {r['FP']}  FN {r['FN']}{extra}")
 per_fold = {k: panoptic_quality({o: gt[o] for o in gt if oof_fold[o] == k}, pred_oof) for k in sorted(set(oof_fold.values()))}
-print("per fold (annotator rule):", {k: round(float(v["annotator"]["PQ"]), 4) for k, v in per_fold.items()})
-hum = np.zeros(6)
+fold_pq = np.array([v["annotator"]["PQ"] for v in per_fold.values()])
+print("per fold (annotator rule):", {k: round(float(v["annotator"]["PQ"]), 4) for k, v in per_fold.items()},
+      f"mean {fold_pq.mean():.4f}, s.d. {fold_pq.std(ddof=1):.4f}")
+human = {}                                   # every pair of annotators of an image, one scored against the other
 for o in gt:
-    for i in range(len(gt[o])):
-        for j in range(i + 1, len(gt[o])):
-            hum += match_counts(*overlap_table(gt[o][i], gt[o][j]))
-print(f"human vs human on the same images: PQ {pq_parts(*hum)[0]:.4f}")
+    pairs = [match_counts(*overlap_table(gt[o][i], gt[o][j])) for i in range(len(gt[o])) for j in range(i + 1, len(gt[o]))]
+    if pairs:
+        human[o] = np.sum(pairs, axis=0)
+hum_pq, hum_ci = pq_parts(*np.sum(list(human.values()), axis=0))[0], bootstrap_interval(list(human.values()))
+print(f"human vs human on the same images: PQ {hum_pq:.4f} (95% interval {hum_ci[0]:.4f}-{hum_ci[1]:.4f}, {len(human)} images)")
+names = ["TP", "FP", "FN", "sumIoU", "splits", "merges"]
+pd.DataFrame([dict(obs=o, fold=oof_fold[o], annotators=len(gt[o]),
+                   **{f"{rule}_{n}": per_image[o][rule][i] for rule in ("annotator", "pooled") for i, n in enumerate(names)},
+                   **({f"human_{n}": human[o][i] for i, n in enumerate(names)} if o in human else {})) for o in gt]
+             ).to_csv(out / "per_image_counts.csv", index=False)
+json.dump({"oof": res, "per_fold": {k: v["annotator"]["PQ"] for k, v in per_fold.items()},
+           "human": {"PQ": hum_pq, "PQ_95": hum_ci, "images": len(human)}, "images": len(gt), "post": vars(cfg.post)},
+          open(out / "results.json", "w"), indent=1, default=float)
 
 # %% 5 · Optional: post-processing search -----------------------------------------------------------
 if TUNE:
@@ -216,8 +231,11 @@ if FIGURES:
                     f"{o}: {len(gt[o])} annotators, {len(pred_oof[o])} predicted")
     fig.tight_layout(); fig.savefig(out / "fig_overlays.png", dpi=110); plt.show()
     stats = viz.pair_stats(gt, pred_oof)
+    np.savez_compressed(out / "pair_stats.npz", iou=stats["iou"], dice=stats["dice"],
+                        gt_degree=np.array(sorted(stats["gt_degree"].items())),
+                        pred_degree=np.array(sorted(stats["pred_degree"].items())))
     fig = viz.distribution_figure(stats, "Out-of-fold predictions, all training images")
-    fig.savefig(out / "fig_distributions.png", dpi=110); plt.show()
+    fig.savefig(out / "fig_distributions.png", dpi=110); fig.savefig(out / "fig_distributions.pdf"); plt.show()
 
 # %% 9 · Package versions (for requirements.txt) -----------------------------------------------------
 from importlib.metadata import version, PackageNotFoundError

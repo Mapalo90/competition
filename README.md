@@ -40,8 +40,8 @@ Per fold (each annotator): 0.427 / 0.406 / 0.391 / 0.409 / 0.409.
 
 - **The labels set the ceiling.** Two annotators agree at PQ 0.34; the model, at 0.41 against each
   annotator, already exceeds that.
-- **A bigger encoder did not help.** On fold 0, ResNet50 matched ResNet34 (0.426 vs 0.427) at 1.7x
-  the training and inference cost.
+- **A bigger encoder did not help.** On fold 0, ResNet50 (768 px crops) matched ResNet34 (0.426 vs 0.427;
+  difference -0.001, 95% interval -0.010 to +0.007) at 1.7x the inference cost.
 - **Scoring rule.** The public leaderboard's level is consistent with PQ against all annotators of an
   image pooled with one-to-one matching (0.353 out-of-fold vs 0.35-0.36), rather than against each annotator
   (0.408). A filament drawn by three annotators then appears three times in the answer key, and one
@@ -109,7 +109,7 @@ weights/                   the five trained fold models, with checksums and prov
 submissions/               the file submitted to Kaggle (public leaderboard 0.36)
 configs/final.json         the submitted settings, as a file
 experiments/               the Kaggle notebooks as run during the competition
-report/                    technical report (LaTeX, figures)
+report/                    technical report in the official template (LaTeX, figures, PDF)
 tests/                     unit tests (synthetic data, run in seconds)
 ```
 

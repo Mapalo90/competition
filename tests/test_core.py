@@ -6,7 +6,7 @@ import pytest
 
 from filseg.config import Config
 from filseg.geometry import disk_geometry
-from filseg.metrics import image_counts, match_counts, overlap_table, panoptic_quality, pq_parts
+from filseg.metrics import bootstrap_interval, image_counts, match_counts, overlap_table, panoptic_quality, pq_parts
 from filseg.postprocess import components, keep_mask
 from filseg.submission import read_submission, rle_decode, rle_encode, write_submission
 from filseg.weights import find_weights
@@ -103,3 +103,12 @@ def test_shipped_weights_load():
     model = build_model(Config().train.encoder, None, "cpu", channels_last=False, data_parallel=False)
     for path in w.values():
         load_weights(model, path)
+
+
+def test_bootstrap_interval():
+    same = np.tile([4, 2, 2, 3.0], (50, 1))                 # identical images -> no spread
+    lo, hi = bootstrap_interval(same)
+    assert lo == pytest.approx(hi) == pytest.approx(pq_parts(4, 2, 2, 3.0)[0])
+    mixed = np.vstack([np.tile([5, 0, 0, 5.0], (50, 1)), np.tile([0, 5, 5, 0.0], (50, 1))])
+    lo, hi = bootstrap_interval(mixed)
+    assert lo < 0.5 < hi and hi - lo < 0.3
