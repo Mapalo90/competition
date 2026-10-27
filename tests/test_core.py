@@ -51,6 +51,7 @@ def test_rle_round_trip(tmp_path):
     back = read_submission(tmp_path / "s.csv")
     (bm, by, bx), = back["20140101000000Bh"]
     assert (by, bx, bm.shape) == (100, 200, (40, 60))
+    assert bm.base is None or bm.base.size == bm.size          # a compact copy, not a view into a full mask
 
 
 def test_group_joining_keeps_pixels_and_joins_close_pieces():

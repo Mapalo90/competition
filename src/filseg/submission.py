@@ -41,6 +41,7 @@ def read_submission(path: str | Path) -> dict:
         obs = str(fid).rsplit("_", 1)[0]
         m = rle_decode(str(counts)).astype(bool)
         ys, xs = np.nonzero(m)
-        if ys.size:
-            out.setdefault(obs, []).append((m[ys.min():ys.max() + 1, xs.min():xs.max() + 1], int(ys.min()), int(xs.min())))
+        if ys.size:                                  # copy the crop so the full 2048 x 2048 mask is freed
+            crop = m[ys.min():ys.max() + 1, xs.min():xs.max() + 1].copy()
+            out.setdefault(obs, []).append((crop, int(ys.min()), int(xs.min())))
     return out

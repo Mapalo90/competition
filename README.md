@@ -6,14 +6,19 @@ Instance segmentation of solar filaments in full-disk GONG H-alpha images, train
 annotations. A whole-disk U-Net predicts how likely each pixel is to be labelled as filament; a tuned
 post-processing step turns the averaged prediction of five fold models into individual filaments.
 
-| | Panoptic Quality |
-|---|---|
-| Out-of-fold, all 707 training images, scored against each annotator | **0.408** (SQ 0.668, RQ 0.611) |
-| Same, all annotators of an image pooled, one-to-one matching | 0.353 |
-| Human agreement (one annotator scored against another, same images) | 0.340 |
-| Public leaderboard | 0.36 |
+| | Panoptic Quality | 95% interval |
+|---|---|---|
+| Out-of-fold, all 707 training images, scored against each annotator | **0.408** (SQ 0.668, RQ 0.611) | 0.399-0.418 |
+| Same, all annotators of an image pooled, one-to-one matching | 0.353 (SQ 0.681, RQ 0.519) | 0.344-0.363 |
+| Human agreement (one annotator scored against another, same images) | 0.340 | 0.324-0.356 |
+| Public leaderboard | 0.36 | |
 
-Per fold (each annotator): 0.427 / 0.406 / 0.391 / 0.409 / 0.409.
+Per fold (each annotator): 0.427 / 0.405 / 0.391 / 0.409 / 0.409. Intervals are percentile bootstraps over images.
+
+**Reproduced from this repository.** Run on Kaggle from the models in `weights/` and the competition data
+alone, the notebook gives the numbers above and rebuilds the submitted file: 1,150 of its 1,152 filaments,
+mean IoU 0.9998 (PQ 0.999 against the submitted file); the other two sit exactly at the 0.85
+mean-probability threshold.
 
 ## Method
 

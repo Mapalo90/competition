@@ -8,7 +8,7 @@ float16 state dict. `filseg.model.load_weights` loads a file into the float32 mo
 | File | Validation fold | Trained by | Epochs | Out-of-fold PQ* | Size | SHA-256 |
 |---|---|---|---|---|---|---|
 | `fold0.pt` | 0 (142 images) | `experiments/02_baseline.py` | 40 | 0.427 | 49.0 MB | `e60815190177c2c676cd4d80b766141838979c915a96ab0d4926af680c242331` |
-| `fold1.pt` | 1 (142 images) | `experiments/03_folds.py` | 30 | 0.406 | 49.0 MB | `2c91c9691c6308089c0f08c194f4fb817a3341b1aedbd2092e4214d0d38cd9e7` |
+| `fold1.pt` | 1 (142 images) | `experiments/03_folds.py` | 30 | 0.405 | 49.0 MB | `2c91c9691c6308089c0f08c194f4fb817a3341b1aedbd2092e4214d0d38cd9e7` |
 | `fold2.pt` | 2 (141 images) | `experiments/03_folds.py` | 30 | 0.391 | 49.0 MB | `d30a585c14c65ea538f3c9507b29eba8edc73998c41bb667a441e917a9fcd994` |
 | `fold3.pt` | 3 (141 images) | `experiments/03_folds.py` | 30 | 0.409 | 49.0 MB | `de5d3ce085f3f767b5bfd942c48c1544981c24ac7be3ea647fada786f7b4118c` |
 | `fold4.pt` | 4 (141 images) | `experiments/03_folds.py` | 30 | 0.409 | 49.0 MB | `7a95fd7175a54adddd42370ffbf29ac7334560353d50a24bf17a3e610ac0ff0e` |

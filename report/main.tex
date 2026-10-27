@@ -27,7 +27,6 @@
 % Guide styling: \guideStyletrue = show gray italic hints; \guideStylefalse = omit them
 % \guideStyletrue
 \guideStylefalse
-\newcommand{\pending}{\textcolor{red}{TBD}}  % DRAFT ONLY: values from the final notebook run
 
 \begin{document}
 
@@ -77,7 +76,7 @@ Guide mode is on.}
 
 \subsection{Data and splits}
 We use only the H-$\alpha$ images and the segmentation masks of the training set: 707 images of $2048\times2048$ pixels with 1{,}154 annotation sets (one per annotator and image) and 8{,}199 filaments. The test set has 180 images and is used only for inference. Four properties of the data shaped the design.
-(i)~\emph{Annotators disagree.} 296 images (42\%) carry two or three independent annotation sets. Scored against each other, annotators agree at PQ 0.340 (95\% interval 0.323--0.356, 598 pairs), and their filament counts on the same image range from 0.67 to 1.33 times the image average (10th--90th percentile). Any single annotation is therefore a noisy target.
+(i)~\emph{Annotators disagree.} 296 images (42\%) carry two or three independent annotation sets. Scored against each other, annotators agree at PQ 0.340 (95\% interval 0.324--0.356, 598 pairs), and their filament counts on the same image range from 0.67 to 1.33 times the image average (10th--90th percentile). Any single annotation is therefore a noisy target.
 (ii)~\emph{Instances are nearly connected regions.} 99.6\% of labelled filaments rasterise to one connected region and only 2.9\% have a neighbour within 10\,px, but annotators draw a filament broken by faint gaps as one object.
 (iii)~\emph{Boundaries matter more than resolution.} Filaments are typically 8\,px wide (median area 1{,}228\,px). Resizing a label to 1024\,px and back keeps a median IoU of 0.98, whereas eroding it by one pixel drops the median IoU to 0.71 and pushes 6\% of filaments below the 0.5 IoU needed for a match.
 (iv)~\emph{Position.} 99\% of labelled filament centres lie within 0.9 solar radii ($R_\odot$), and 14\% of images show a faint off-disk halo that misleads threshold-based disk detection by up to 120\,px.
@@ -114,23 +113,23 @@ We score the OOF predictions of all 707 training images with $\mathrm{PQ}=\sum_{
     \toprule
     & PQ & 95\% interval & SQ & RQ \\
     \midrule
-    OOF, each annotator & \textbf{0.408} & \pending & 0.668 & 0.611 \\
-    OOF, annotators pooled & 0.353 & \pending & \pending & \pending \\
+    OOF, each annotator & \textbf{0.408} & 0.399--0.418 & 0.668 & 0.611 \\
+    OOF, annotators pooled & 0.353 & 0.344--0.363 & 0.681 & 0.519 \\
     OOF, threshold 0.5 only & 0.331 & & & \\
-    Human: annotator vs.\ annotator & 0.340 & 0.323--0.356 & 0.634 & 0.536 \\
+    Human: annotator vs.\ annotator & 0.340 & 0.324--0.356 & 0.634 & 0.536 \\
     Public leaderboard ($\approx$90 images) & 0.36 & $\pm0.024^a$ & & \\
     \bottomrule
   \end{tabular}\\[2pt]
-  {\footnotesize Folds 0--4, each annotator: 0.427, 0.406, 0.391, 0.409, 0.409 (mean 0.408, s.d.\ 0.013). $^a$Two standard deviations of PQ over random sets of 90 OOF images.}
+  {\footnotesize Folds 0--4, each annotator: 0.427, 0.405, 0.391, 0.409, 0.409 (mean 0.408, s.d.\ 0.013). $^a$Two standard deviations of PQ over random sets of 90 OOF images.}
 \end{table}
 
 \subsection{Results}
-Table~\ref{tab:main} summarises the OOF results. The model exceeds human agreement by 0.07 PQ, and the five folds lie within $\pm0.02$ of the mean. Tuned post-processing adds 0.077 over plain thresholding: 0.073 from the filters and 0.004 from joining, which reduces the number of labelled filaments split into several predictions from 469 to 323. Fig.~\ref{fig:dist} shows the distributions named in the evaluation rubric: the IoU and Dice of every overlapping pair of labelled and predicted filaments, and the one-to-many and many-to-one relations. 77\% of labelled filaments overlap exactly one prediction and 84\% of predictions overlap exactly one labelled filament; 3--4\% overlap two or more. Fig.~\ref{fig:sens} shows that PQ is flat around the chosen settings except for the mean-probability filter, which costs PQ quickly above 0.85; the result therefore does not depend on a finely tuned value. Fig.~\ref{fig:examples} shows typical predictions: they follow the dark body of each filament closely and stop where the contrast fades, including at barbs.
+Table~\ref{tab:main} summarises the OOF results. The model exceeds human agreement by 0.07 PQ, and the five folds lie within $\pm0.02$ of the mean. Tuned post-processing adds 0.077 over plain thresholding: 0.073 from the filters and 0.004 from joining, which reduces the number of labelled filaments split into several predictions from 469 to 323. Fig.~\ref{fig:dist} shows the distributions named in the evaluation rubric: the IoU and Dice of every overlapping pair of labelled and predicted filaments, and the one-to-many and many-to-one relations. 76\% of labelled filaments overlap exactly one prediction and 83\% of predictions overlap exactly one labelled filament; about 4\% overlap two or more. Fig.~\ref{fig:sens} shows that PQ is flat around the chosen settings except for the mean-probability filter, which costs PQ quickly above 0.85; the result therefore does not depend on a finely tuned value. Fig.~\ref{fig:examples} shows typical predictions: they follow the dark body of each filament closely and stop where the contrast fades, including at barbs.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/distributions}
-  \caption{Fold~0 (142 images), final settings: IoU and Dice of every overlapping (label, prediction) pair, and how many predictions each labelled filament overlaps (1:n) and vice versa (n:1).}
+  \caption{All 707 training images (out of fold), final settings: IoU and Dice of every overlapping (label, prediction) pair, and how many predictions each labelled filament overlaps (1:n) and vice versa (n:1).}
   \label{fig:dist}
 \end{figure}
 
@@ -161,18 +160,19 @@ Table~\ref{tab:main} summarises the OOF results. The model exceeds human agreeme
 \subsection{Ablations and run time}
 Table~\ref{tab:abl} varies the model while keeping the post-processing fixed. A ResNet50 encoder needs $768\times768$ crops to fit two 16\,GB GPUs and only matches the ResNet34 reference, at 1.7 times its inference cost; averaging the two architectures gains 0.004, and every difference lies inside its 95\% interval. Two post-processing variants also stayed within noise: a learned per-filament keep/drop score (gradient-boosted trees on 23 shape, probability and position features, cross-validated by image) gained 0.004 against each annotator and nothing under pooled scoring, and recalibrating the threshold for averaged maps gained at most 0.003. We kept the simpler, cheaper configuration.
 Training takes about 2.3 minutes per epoch, about 70 minutes per fold, on two NVIDIA T4 GPUs. Inference costs about 0.8\,s per image and model with test-time augmentation (about 4\,s for the five-model ensemble), plus 0.2\,s of post-processing on one CPU core.
+\emph{Reproducibility.} The repository holds the five models (float16, 49\,MB each) and a notebook that rebuilds everything from them and the competition data. Re-run on Kaggle, it reproduced the OOF results above and the submitted file: 1{,}150 of its 1{,}152 filaments with mean IoU 0.9998 (PQ 0.999 against the submitted file); the other two have a mean probability of 0.850, exactly at the filter threshold.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/by_annotators}
-  \caption{PQ by number of annotators per image, fold~0, with 95\% bootstrap intervals. Against each annotator PQ does not depend on how many people labelled the image; pooled PQ falls with every additional annotator.}
+  \caption{PQ by number of annotators per image, all 707 training images (out of fold), with 95\% bootstrap intervals. Against each annotator PQ hardly depends on how many people labelled the image; pooled PQ falls with every additional annotator.}
   \label{fig:byann}
 \end{figure}
 
 \subsection{Strengths, weaknesses and possible improvements}
-\emph{Strengths.} The method exceeds human agreement out of fold with a single standard architecture, needs no tiling, runs in about 4\,s per image, and its post-processing settings sit on a plateau rather than a sharp optimum. The disk fit makes the limb filter safe on halo images, and the soft targets make the model robust to which annotator labelled an image: on fold~0, PQ against each annotator is the same for images with one, two and three annotators (0.426, 0.431 and 0.425; Fig.~\ref{fig:byann}).
+\emph{Strengths.} The method exceeds human agreement out of fold with a single standard architecture, needs no tiling, runs in about 4\,s per image, and its post-processing settings sit on a plateau rather than a sharp optimum. The disk fit makes the limb filter safe on halo images, and the soft targets make the model robust to which annotator labelled an image: PQ against each annotator is 0.410, 0.420 and 0.400 for images with one, two and three annotators, with overlapping intervals (Fig.~\ref{fig:byann}).
 
-\emph{Scoring rule.} Pooled PQ is not just lower but falls with every additional annotator (0.426, 0.350 and 0.292), because a filament drawn by three annotators appears three times in the pooled list and a non-overlapping prediction can match only one copy. The public leaderboard (0.35--0.36) is consistent with our pooled estimate (0.353) rather than the per-annotator one (0.408). Re-tuning for the pooled rule keeps slightly more filaments (6.8 instead of 6.6 per image on fold~0) and gains 0.003, below what the leaderboard can resolve.
+\emph{Scoring rule.} Pooled PQ is not just lower but falls with every additional annotator (0.410, 0.344 and 0.276), because a filament drawn by three annotators appears three times in the pooled list and a non-overlapping prediction can match only one copy. The public leaderboard (0.35--0.36) is consistent with our pooled estimate (0.353) rather than the per-annotator one (0.408). Re-tuning for the pooled rule keeps slightly more filaments (6.8 instead of 6.6 per image on fold~0) and gains 0.003, below what the leaderboard can resolve.
 
 \emph{Weaknesses.} For matched pairs on fold~0, 53\% of missed labelled pixels lie in the outer 2\,px of a filament's body and 61\% of extra predicted pixels lie within 2\,px outside the label, so boundary placement, where annotators also disagree (Fig.~\ref{fig:examples}e,f), dominates the remaining loss. Thin structures narrower than 5\,px (barbs and threads) are only 2.4\% of the labelled area; within detected filaments the model captures 45\% of them versus 81\% of other filament pixels, and capturing all of them would raise SQ by at most 0.016. The missed barbs are essentially absent from the probability map (median probability 0.008, the same as unlabelled pixels beside the filament). An image-guided refinement that re-decides a thin band around each filament by local darkness raised the share of labelled thin parts covered from 35.5\% to 40.3\% but changed PQ by $-0.007$ to $+0.001$ ($-0.001$ on a held-out half), so we did not adopt it. Faint filaments in low-contrast images are missed (Fig.~\ref{fig:examples}g,h). Finally, the settings were tuned on the same OOF predictions they are scored on, so the OOF PQ is slightly optimistic, and the leaderboard's rule for multiply-annotated images is inferred rather than documented.
 
