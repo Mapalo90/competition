@@ -50,7 +50,13 @@ mean-probability threshold.
 - **Scoring rule.** The public leaderboard's level is consistent with PQ against all annotators of an
   image pooled with one-to-one matching (0.353 out-of-fold vs 0.35-0.36), rather than against each annotator
   (0.408). A filament drawn by three annotators then appears three times in the answer key, and one
-  prediction can only match one copy.
+  prediction can only match one copy. Duplicating masks does not help (repeating each of our masks 2x or 3x
+  lowers the out-of-fold score to 0.340 and 0.290), while one annotator's own labels would score 0.777: scores
+  far above about 0.41 need predictions much closer to the hidden labels than two annotators are to each other.
+- **It generalizes.** Choosing the post-processing settings on four folds and scoring them on the fifth gives
+  0.405 (0.408 when tuned on all images). PQ against each annotator is 0.399-0.428 across the six GONG sites,
+  with overlapping 95% intervals, and the test predictions look like the training ones (6.4 vs 6.7 filaments
+  per image).
 - **Fine structures.** Barbs and threads (parts under 5 px wide) are 2.4% of the labelled area; the
   model captures 45% of them within detected filaments. Most of the remaining IoU loss is a 1-2 px
   disagreement along the edge of the main body, where annotators also disagree with each other. An
